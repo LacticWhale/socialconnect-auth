@@ -25,12 +25,7 @@ abstract class AbstractProvider extends AbstractBaseProvider
      */
     protected $requestHttpMethod = 'POST';
 
-    /**
-     * Is Oauth2.1
-     * @var bool
-     */
-    protected bool $is2_1 = false;
-    protected ?string $codeVerifier = null;
+    protected bool $pkce = false;
 
     /**
      * @return string
@@ -54,9 +49,10 @@ abstract class AbstractProvider extends AbstractBaseProvider
         $parameters['redirect_uri'] = $this->getRedirectUrl();
         $parameters['response_type'] = 'code';
 
-        if ($this->is2_1) {
-            $this->codeVerifier = $this->generatePKCECodeVerifier();
-            $parameters['code_challenge'] = $this->generatePKCECodeChallenge($this->codeVerifier);
+        if ($this->pkce) {
+            $codeVerifier = $this->generatePKCECodeVerifier();
+            setcookie('code_verifier', $codeVerifier, secure: true, httponly: true);
+            $parameters['code_challenge'] = $this->generatePKCECodeChallenge($codeVerifier);
             $parameters['code_challenge_method'] = 'S256';
         }
 
@@ -137,8 +133,10 @@ abstract class AbstractProvider extends AbstractBaseProvider
             'redirect_uri' => $this->getRedirectUrl()
         ];
 
-        if ($this->is2_1) {
-            $parameters['code_verifier'] = $this->codeVerifier;
+        if ($this->pkce) {
+            $parameters['code_verifier'] = $_COOKIE['code_verifier'];
+            setcookie('code_verifier', "", time() - 3600, "/");
+            $parameters['device_id'] = $this->session->get('device_id');
         }
 
         return $this->httpStack->createRequest($this->requestHttpMethod, $this->getRequestTokenUri())
@@ -183,6 +181,9 @@ abstract class AbstractProvider extends AbstractBaseProvider
         if (!isset($parameters['code'])) {
             throw new Unauthorized('Unknown code');
         }
+
+        if (!isset($parameters['device_id']))
+            $this->session->set('device_id', $parameters['device_id']);
 
         if (!$this->getBoolOption('stateless', false)) {
             $state = $this->session->get('oauth2_state');
