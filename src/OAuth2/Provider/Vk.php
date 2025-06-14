@@ -18,7 +18,7 @@ class Vk extends \SocialConnect\OAuth2\AbstractProvider
     /**
      * {@inheritdoc}
      */
-    protected $requestHttpMethod = 'GET';
+    protected $requestHttpMethod = 'POST';
 
     public function getBaseUri()
     {
