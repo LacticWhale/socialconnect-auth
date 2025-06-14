@@ -26,6 +26,13 @@ abstract class AbstractProvider extends AbstractBaseProvider
     protected $requestHttpMethod = 'POST';
 
     /**
+     * Is Oauth2.1
+     * @var bool
+     */
+    protected bool $is2_1 = false;
+    protected ?string $codeVerifier = null;
+
+    /**
      * @return string
      */
     abstract public function getAuthorizeUri();
@@ -47,7 +54,27 @@ abstract class AbstractProvider extends AbstractBaseProvider
         $parameters['redirect_uri'] = $this->getRedirectUrl();
         $parameters['response_type'] = 'code';
 
+        if ($this->is2_1) {
+            $this->codeVerifier = $this->generatePKCECodeVerifier();
+            $parameters['code_challenger'] = $this->generatePKCECodeChallenge($this->codeVerifier);
+            $parameters['code_challenge_method'] = 'S256';
+        }
+
         return $parameters;
+    }
+
+    private function generatePKCECodeVerifier($length = 128) {
+        if ($length < 43 || $length > 128) {
+            throw new \Exception("Length must be between 43 and 128");
+        }
+
+        $randomBytes = random_bytes($length);
+        return rtrim(strtr(base64_encode($randomBytes), '+/', '-_'), '=');
+    }
+
+    private function generatePKCECodeChallenge($codeVerifier) {
+        $hash = hash('sha256', $codeVerifier, true);
+        return rtrim(strtr(base64_encode($hash), '+/', '-_'), '=');
     }
 
     /**
@@ -109,6 +136,10 @@ abstract class AbstractProvider extends AbstractBaseProvider
             'grant_type' => 'authorization_code',
             'redirect_uri' => $this->getRedirectUrl()
         ];
+
+        if ($this->is2_1) {
+            $parameters['code_verifier'] = $this->codeVerifier;
+        }
 
         return $this->httpStack->createRequest($this->requestHttpMethod, $this->getRequestTokenUri())
             ->withHeader('Content-Type', 'application/x-www-form-urlencoded')

@@ -18,21 +18,26 @@ class Vk extends \SocialConnect\OAuth2\AbstractProvider
     /**
      * {@inheritdoc}
      */
-    protected $requestHttpMethod = 'GET';
+    protected $requestHttpMethod = 'POST';
+
+    /**
+     * {@inheritdoc}
+     */
+    protected $is2_1 = true;
 
     public function getBaseUri()
     {
-        return 'https://api.vk.com/';
+        return 'https://id.vk.com/';
     }
 
     public function getAuthorizeUri()
     {
-        return 'https://api.vk.com/oauth/authorize';
+        return 'https://id.vk.com/authorize';
     }
 
     public function getRequestTokenUri()
     {
-        return 'https://api.vk.com/oauth/token';
+        return 'https://api.vk.com/oauth2/auth';
     }
 
     public function getName()
@@ -56,16 +61,22 @@ class Vk extends \SocialConnect\OAuth2\AbstractProvider
     public function getIdentity(AccessTokenInterface $accessToken)
     {
         $query = [
-            'v' => '5.100'
+            'client_id' => $this->consumer->getKey(),
+            'access_token' => $accessToken->getToken(),
         ];
 
         $fields = $this->getArrayOption('identity.fields', []);
-        if ($fields) {
-            $query['fields'] = implode(',', $fields);
+        // if ($fields) {
+        //     $query['field'] = implode(',', $fields);
+        // }
+        debugLog(__METHOD__, $query);
+        try {
+            $response = $this->request('GET', 'oauth2/user_info', $query, $accessToken);
+        } catch (\Throwable $th) {
+            debugLog($th);
+            throw $th;
         }
-
-        $response = $this->request('GET', 'method/users.get', $query, $accessToken);
-
+        debugLog(__METHOD__, $response);
         $hydrator = new ArrayHydrator([
             'id' => 'id',
             'first_name' => 'firstname',
