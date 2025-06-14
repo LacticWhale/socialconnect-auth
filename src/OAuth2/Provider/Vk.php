@@ -23,7 +23,7 @@ class Vk extends \SocialConnect\OAuth2\AbstractProvider
     /**
      * {@inheritdoc}
      */
-    protected bool $is2_1 = true;
+    protected bool $pkce = true;
 
     public function getBaseUri()
     {
