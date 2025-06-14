@@ -56,7 +56,7 @@ abstract class AbstractProvider extends AbstractBaseProvider
 
         if ($this->is2_1) {
             $this->codeVerifier = $this->generatePKCECodeVerifier();
-            $parameters['code_challenger'] = $this->generatePKCECodeChallenge($this->codeVerifier);
+            $parameters['code_challenge'] = $this->generatePKCECodeChallenge($this->codeVerifier);
             $parameters['code_challenge_method'] = 'S256';
         }
 
