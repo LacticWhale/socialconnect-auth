@@ -51,7 +51,8 @@ abstract class AbstractProvider extends AbstractBaseProvider
 
         if ($this->pkce) {
             $codeVerifier = $this->generatePKCECodeVerifier();
-            $this->session->set('oauth2_code_verifier', $codeVerifier);
+            $this->session->set('code_verifier', $codeVerifier);
+
             $parameters['code_challenge'] = $this->generatePKCECodeChallenge($codeVerifier);
             $parameters['code_challenge_method'] = 'S256';
         }
@@ -81,9 +82,10 @@ abstract class AbstractProvider extends AbstractBaseProvider
         $urlParameters = $this->getAuthUrlParameters();
 
         if (!$this->getBoolOption('stateless', false)) {
+            $state = $this->generateState();
             $this->session->set(
                 'oauth2_state',
-                $urlParameters['state'] = $this->generateState()
+                $urlParameters['state'] = $state,
             );
         }
 
@@ -135,11 +137,10 @@ abstract class AbstractProvider extends AbstractBaseProvider
 
         if ($this->pkce) {
             $codeVerifier = $this->session->get('code_verifier');
-            if (!$codeVerifier) {
+            if (!$codeVerifier)
                 throw new \RuntimeException('PKCE code verifier not found in session');
-            }
             $parameters['code_verifier'] = $codeVerifier;
-            // Clean up the session after use
+            $parameters['device_id'] = $this->session->get('device_id');
             $this->session->delete('code_verifier');
         }
 
@@ -185,6 +186,9 @@ abstract class AbstractProvider extends AbstractBaseProvider
         if (!isset($parameters['code'])) {
             throw new Unauthorized('Unknown code');
         }
+
+        if (isset($parameters['device_id']))
+            $this->session->set('device_id', $parameters['device_id']);
 
         if (!$this->getBoolOption('stateless', false)) {
             $state = $this->session->get('oauth2_state');

@@ -37,7 +37,7 @@ class Vk extends \SocialConnect\OAuth2\AbstractProvider
 
     public function getRequestTokenUri()
     {
-        return 'https://api.vk.com/oauth2/auth';
+        return 'https://id.vk.com/oauth2/auth';
     }
 
     public function getName()
@@ -62,43 +62,36 @@ class Vk extends \SocialConnect\OAuth2\AbstractProvider
     {
         $query = [
             'client_id' => $this->consumer->getKey(),
-            'access_token' => $accessToken->getToken(),
         ];
 
-        $fields = $this->getArrayOption('identity.fields', []);
-        // if ($fields) {
-        //     $query['field'] = implode(',', $fields);
-        // }
-        debugLog(__METHOD__, $query);
-        try {
-            $response = $this->request('GET', 'oauth2/user_info', $query, $accessToken);
-        } catch (\Throwable $th) {
-            debugLog($th);
-            throw $th;
-        }
-        debugLog(__METHOD__, $response);
+        $response = $this->request('POST', 'oauth2/user_info', $query, null, [
+            'access_token' => $accessToken->getToken(),
+        ]);
+
+        debugLog($response);
         $hydrator = new ArrayHydrator([
-            'id' => 'id',
+            'user_id' => 'id',
             'first_name' => 'firstname',
             'last_name' => 'lastname',
-            'bdate' => static function ($value, User $user) {
+            'birthday' => static function ($value, User $user) {
+                list($day, $month, $year) = array_map(
+                    intval(...),
+                    explode('.', $value),
+                );
                 $user->setBirthday(
-                    new \DateTime($value)
+                    new \DateTime()->setDate($year, $month, $day)
                 );
             },
             'sex' => static function ($value, User $user) {
                 $user->setSex($value === 1 ? User::SEX_FEMALE : User::SEX_MALE);
             },
+            'email' => 'email',
             'screen_name' => 'username',
-            'photo_max_orig' => 'pictureURL',
+            'avatar' => 'pictureURL',
         ]);
 
         /** @var User $user */
-        $user = $hydrator->hydrate(new User(), $response['response'][0]);
-
-        // Vk returns email inside AccessToken
-        $user->email = $accessToken->getEmail();
-        $user->emailVerified = true;
+        $user = $hydrator->hydrate(new User(), $response['user']);
 
         return $user;
     }
