@@ -68,7 +68,6 @@ class Vk extends \SocialConnect\OAuth2\AbstractProvider
             'access_token' => $accessToken->getToken(),
         ]);
 
-        debugLog($response);
         $hydrator = new ArrayHydrator([
             'user_id' => 'id',
             'first_name' => 'firstname',
